@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../services/session_manager.dart';
+import 'AddFineDialog.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,126 +12,71 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   final List<Map<String, String>> _offenseRecords = [];
 
-  void _showAddOffenseForm() {
-    final TextEditingController licenseController = TextEditingController();
-    final TextEditingController dateController = TextEditingController();
-    final TextEditingController offenceController = TextEditingController();
-    String nature = "Low"; // Default nature value
-    String type = "Normal"; // Default type value
-    final TextEditingController amountController = TextEditingController();
+  void _showUserInfoDialog() async {
+    final userData = await UserPreferences.getUserData();
+    print('user data: $userData');
 
-    Future<void> _selectDate() async {
-      DateTime? picked = await showDatePicker(
+    if (userData == null || userData.isEmpty) {
+      showDialog(
         context: context,
-        initialDate: DateTime.now(),
-        firstDate: DateTime(2000),
-        lastDate: DateTime(2100),
+        builder: (_) => AlertDialog(
+          title: const Text("User Info"),
+          content: const Text("No user data found."),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("OK"),
+            ),
+          ],
+        ),
       );
-      if (picked != null) {
-        setState(() {
-          dateController.text = "${picked.year}-${picked.month}-${picked.day}";
-        });
-      }
+      return;
     }
+
+    final filteredUserData = Map.fromEntries(userData.entries.where(
+      (entry) => !['id', 'token'].contains(entry.key.toLowerCase()),
+    ));
 
     showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text("Add Offense Record"),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _buildTextField(licenseController, "License ID"),
-                TextField(
-                  controller: dateController,
-                  decoration: InputDecoration(
-                    labelText: "Date",
-                    border: const OutlineInputBorder(),
-                    suffixIcon: IconButton(
-                      icon: const Icon(Icons.calendar_today),
-                      onPressed: _selectDate,
-                    ),
-                  ),
-                  readOnly: true,
-                ),
-                const SizedBox(height: 10),
-                _buildTextField(offenceController, "Offense"),
-                const SizedBox(height: 10),
-                _buildDropdown("Nature", ["Low", "Medium", "High"], (value) {
-                  nature = value!;
-                }),
-                const SizedBox(height: 10),
-                _buildDropdown("Type", ["Normal", "Court"], (value) {
-                  type = value!;
-                }),
-                const SizedBox(height: 10),
-                _buildTextField(amountController, "Amount"),
-              ],
-            ),
+      builder: (_) => AlertDialog(
+        title: const Text("User Info"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: filteredUserData.entries.map((entry) {
+            return Text("${_formatKey(entry.key)}: ${entry.value}");
+          }).toList(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
           ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text("Cancel"),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (licenseController.text.isNotEmpty &&
-                    dateController.text.isNotEmpty &&
-                    offenceController.text.isNotEmpty &&
-                    amountController.text.isNotEmpty) {
-                  setState(() {
-                    _offenseRecords.add({
-                      "License ID": licenseController.text,
-                      "Date": dateController.text,
-                      "Offense": offenceController.text,
-                      "Nature": nature,
-                      "Type": type,
-                      "Amount": amountController.text,
-                    });
-                  });
-                  Navigator.of(context).pop();
-                }
-              },
-              child: const Text("Submit"),
-            ),
-          ],
+        ],
+      ),
+    );
+  }
+
+  String _formatKey(String key) {
+    return key.replaceAllMapped(RegExp(r'(_|^)([a-z])'), (match) {
+      return " ${match[2]!.toUpperCase()}";
+    }).trim();
+  }
+
+  void _showAddOffenseForm() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AddFineDialog(
+          onSubmit: (fineData) {
+            setState(() {
+              _offenseRecords.add(fineData.map(
+                  (key, value) => MapEntry(key.toString(), value.toString())));
+            });
+          },
         );
       },
-    );
-  }
-
-  Widget _buildTextField(TextEditingController controller, String label) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
-      child: TextField(
-        controller: controller,
-        decoration: InputDecoration(
-          labelText: label,
-          border: const OutlineInputBorder(),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDropdown(String label, List<String> options, Function(String?) onChanged) {
-    return DropdownButtonFormField<String>(
-      decoration: InputDecoration(
-        labelText: label,
-        border: const OutlineInputBorder(),
-      ),
-      value: options.first,
-      items: options.map((String value) {
-        return DropdownMenuItem<String>(
-          value: value,
-          child: Text(value),
-        );
-      }).toList(),
-      onChanged: onChanged,
     );
   }
 
@@ -139,6 +86,10 @@ class _HomeScreenState extends State<HomeScreen> {
       backgroundColor: const Color(0xFFebcec7),
       appBar: AppBar(
         title: const Text("Home"),
+        leading: IconButton(
+          icon: const Icon(Icons.person),
+          onPressed: _showUserInfoDialog,
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.logout),
