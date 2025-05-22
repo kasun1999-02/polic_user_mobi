@@ -75,7 +75,7 @@ class ApiService {
 
   // Get all fines
   Future<List<Map<String, dynamic>>?> getAllFines() async {
-    final url = Uri.parse('${baseUrl}fines/all');
+    final url = Uri.parse('${baseUrl}fine/all');
 
     try {
       final response = await http.get(url);
@@ -149,7 +149,7 @@ class ApiService {
     }
   }
 
-  Future<List<dynamic>?> fetchOffenseList() async {
+  Future<Map<String, dynamic>?> fetchOffenseList() async {
     final response = await http.get(Uri.parse('$baseUrl/policeIssueFine/all'));
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
